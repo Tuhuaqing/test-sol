@@ -5,15 +5,17 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 
 contract FundMe {
     // 1w dollar
-    uint256 private MIN_VALUE = 10000 * 10**8;
+    uint256 public MIN_VALUE = 10000 * 10**8;
     // 10w dollar
-    uint256 private TARGET = 100000 * 10**8;
-    address private owner;
-    mapping(address => uint256) private funder2Amount;
+    uint256 public TARGET = 100000 * 10**8;
+    address public owner;
+    mapping(address => uint256) public funder2Amount;
     AggregatorV3Interface private dataFeed;
-    uint256 private startTime;
-    uint256 private lockDuration;
-    uint256 private expirationTime;
+    uint256 public startTime;
+    uint256 public lockDuration;
+    uint256 public expirationTime;
+    address public erc20Addr;
+    bool public isContractEnd = false;
 
     constructor() {
         /**
@@ -26,7 +28,7 @@ contract FundMe {
         );
         owner = msg.sender;
         startTime = block.timestamp;
-        lockDuration = 5 * 60; // 10 minutes
+        lockDuration = 5 * 60; // 5 minutes
         expirationTime = startTime + lockDuration;
     }
 
@@ -97,10 +99,9 @@ contract FundMe {
         // require(success, "failed");
 
         // call: call another function and return bool,result
-        (bool success, ) = payable(msg.sender).call{
-            value: address(this).balance
-        }("");
+        (bool success, ) = payable(msg.sender).call{value: contractBalance()}("");
         require(success, "failed");
+        isContractEnd = true;
     }
 
     function refund() external inWindow {
@@ -119,4 +120,16 @@ contract FundMe {
         return ethWei2Usd(funder2Amount[msg.sender]) / 10**8;
     }
 
+    function setFunder2Amount(address funder, uint256 amount) public onlyOwner {
+        require(msg.sender == erc20Addr, "only erc20 can update the amount");
+        funder2Amount[funder] = amount;
+    }
+
+    function setErc20(address _erc20Addr) public onlyOwner {
+        erc20Addr = _erc20Addr;
+    }
+
+    function contractBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
 }
